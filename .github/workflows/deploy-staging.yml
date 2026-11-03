@@ -1,0 +1,46 @@
+name: Deploy to Staging
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies and train model
+        run: |
+          pip install -r requirements.txt
+          python src/train.py
+
+      - name: Build Docker image
+        run: docker build -t $IMAGE_NAME:${{ github.ref_name }} .
+
+      - name: Smoke test the container
+        run: |
+          docker run -d -p 8000:8000 --name staging-test $IMAGE_NAME:${{ github.ref_name }}
+          sleep 10
+          curl -f http://localhost:8000/health
+          docker stop staging-test
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push image to staging registry
+        run: docker push $IMAGE_NAME:${{ github.ref_name }}
