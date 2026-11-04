@@ -18,7 +18,7 @@ class IrisFeatures(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "Iris Classifier API is running. Open /docs to test it."}
+        return {"message": "Iris Classifier API is running. Open /docs to test."}
 
 
 @app.get("/health")
